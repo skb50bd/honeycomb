@@ -1,0 +1,178 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:v2.10.7
+    command:
+      - "--log.level=INFO"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.https.address=:443"
+      - "--providers.file.filename=/etc/traefik/traefik-dynamic.yaml"
+    ports:
+      - 80:80
+      - 443:443
+      - 8080:8080
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/letsencrypt/live/${BASE_DOMAIN}/:/certificates/:ro
+      - ./traefik/traefik-dynamic.yaml:/etc/traefik/traefik-dynamic.yaml:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_URL}`)"
+      - "traefik.http.routers.dashboard.entrypoints=https"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_CREDENTIALS}"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      - "traefik.http.routers.dashboard.middlewares=redirect-to-https"
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    networks:
+      - edge
+    ports:
+      - 9000:9000
+      - 9443:9443
+    volumes:
+        - portainer_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`${PORTAINER_URL}`)"
+      - "traefik.http.routers.portainer.entrypoints=https"
+      - "traefik.http.routers.portainer.tls=true"
+      - "traefik.http.routers.portainer.service=portainer"
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      - "traefik.http.routers.portainer.middlewares=redirect-to-https"
+    restart: unless-stopped
+
+  agent:
+    image: portainer/agent
+    ports:
+      - 9001:9001
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    deploy:
+    depends_on:
+      - portainer
+    restart: unless-stopped
+
+  speedtest:
+    image: openspeedtest/latest
+    networks:
+      - edge
+    ports:
+      - 3000:3000
+      - 3001:3001
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.speedtest.rule=Host(`${SPEEDTEST_URL}`)"
+      - "traefik.http.routers.speedtest.entrypoints=https"
+      - "traefik.http.routers.speedtest.tls=true"
+      - "traefik.http.routers.speedtest.service=speedtest"
+      - "traefik.http.services.speedtest.loadbalancer.server.port=3000"
+      - "traefik.http.routers.speedtest.middlewares=redirect-to-https"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  flood:
+    image: jesec/flood:master
+    networks:
+      - edge
+    environment:
+      - TZ
+    command:
+      - --rundir=/config
+      - --port=8788
+    ports:
+      - 8788:8788
+    volumes:
+      - flood_config:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flood.rule=Host(`${FLOOD_URL}`)"
+      - "traefik.http.routers.flood.entrypoints=https"
+      - "traefik.http.routers.flood.tls=true"
+      - "traefik.http.routers.flood.service=flood"
+      - "traefik.http.services.flood.loadbalancer.server.port=8788"
+      - "traefik.http.routers.flood.middlewares=redirect-to-https"
+    depends_on:
+      - qbittorrent
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    networks:
+      - edge
+    ports:
+      - 8766:8766
+    environment:
+      - TZ
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8766
+    volumes:
+      - qbittorrent_config:/config
+      - /media:/media
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qbittorrent.rule=Host(`${QBITTORRENT_URL}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=https"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.service=qbittorrent"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8766"
+      - "traefik.http.routers.qbittorrent.middlewares=redirect-to-https"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    networks:
+      - edge
+    ports:
+      - 32400:32400
+    environment:
+      - PLEX_CLAIM
+      - TZ
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+    volumes:
+      - plex_config:/config
+      - plex_transcode:/transcode
+      - /media:/media
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.plex.rule=Host(`${PLEX_URL}`)"
+      - "traefik.http.routers.plex.entrypoints=https"
+      - "traefik.http.routers.plex.tls=true"
+      - "traefik.http.routers.plex.service=plex"
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefik.http.routers.plex.middlewares=redirect-to-https"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+networks:
+  edge:
+
+volumes:
+  portainer_data:
+  plex_config:
+  plex_transcode:
+  qbittorrent_config:
+  flood_config:
