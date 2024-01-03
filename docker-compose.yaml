@@ -3,6 +3,7 @@ version: "3.8"
 services:
   traefik:
     image: traefik:v2.10.7
+    container_name: traefik
     command:
       - "--log.level=INFO"
       - "--api.insecure=true"
@@ -20,7 +21,8 @@ services:
       - edge
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${TRAEFIK_CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
+      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
+      - ${HTPASSWD_PATH}:/auth/htpasswd:ro
       - ./traefik/traefik-dynamic.yaml:/etc/traefik/traefik-dynamic.yaml:ro
     labels:
       - "traefik.enable=true"
@@ -34,10 +36,79 @@ services:
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
       - "traefik.http.routers.dashboard.middlewares=redirect-to-https"
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    networks:
+      - edge
+    volumes:
+      - ${MINIO_DATA_DIR}:/data/
+    environment:
+      - MINIO_ACCESS_KEY
+      - MINIO_SECRET_KEY
+    command: server /data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`${MINIO_URL}`)"
+      - "traefik.http.routers.minio.entrypoints=https"
+      - "traefik.http.routers.minio.tls=true"
+      - "traefik.http.routers.minio.service=minio"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio.middlewares=redirect-to-https"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  docker_registry:
+    image: registry:2
+    container_name: docker_registry
+    networks:
+      - edge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docker_registry.rule=Host(`${DOCKER_REGISTRY_URL}`)"
+      - "traefik.http.routers.docker_registry.entrypoints=https"
+      - "traefik.http.routers.docker_registry.tls=true"
+      - "traefik.http.routers.docker_registry.service=docker_registry"
+      - "traefik.http.services.docker_registry.loadbalancer.server.port=443"
+      - "traefik.http.routers.docker_registry.middlewares=redirect-to-https"
+    environment:
+      - REGISTRY_AUTH_HTPASSWD_PATH
+      - REGISTRY_AUTH_HTPASSWD_REALM
+      - REGISTRY_HTTP_ADDR=0.0.0.0:443
+      - REGISTRY_HTTP_TLS_CERTIFICATE
+      - REGISTRY_HTTP_TLS_KEY
+      - REGISTRY_STORAGE
+      - REGISTRY_STORAGE_S3_ACCESSKEY
+      - REGISTRY_STORAGE_S3_SECRETKEY
+      - REGISTRY_STORAGE_S3_BUCKET
+      - REGISTRY_STORAGE_S3_REGION
+      - REGISTRY_STORAGE_S3_REGIONENDPOINT=http://minio:9000
+    volumes:
+      - ${HTPASSWD_PATH}:/auth/htpasswd
+      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
+    depends_on:
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/v2/_catalog"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
   portainer:
     image: portainer/portainer-ce:latest
+    container_name: portainer
     networks:
       - edge
     ports:
@@ -53,10 +124,16 @@ services:
       - "traefik.http.routers.portainer.service=portainer"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
       - "traefik.http.routers.portainer.middlewares=redirect-to-https"
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
-  agent:
+  portainer_agent:
     image: portainer/agent
+    container_name: portainer_agent
     ports:
       - 9001:9001
     networks:
@@ -67,10 +144,16 @@ services:
     deploy:
     depends_on:
       - portainer
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
   speedtest:
     image: openspeedtest/latest
+    container_name: speedtest
     networks:
       - edge
     ports:
@@ -86,35 +169,16 @@ services:
       - "traefik.http.routers.speedtest.middlewares=redirect-to-https"
     depends_on:
       - traefik
-    restart: unless-stopped
-
-  flood:
-    image: jesec/flood:master
-    networks:
-      - edge
-    environment:
-      - TZ
-    command:
-      - --rundir=/config
-      - --port=8788
-    ports:
-      - 8788:8788
-    volumes:
-      - flood_config:/config
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.flood.rule=Host(`${FLOOD_URL}`)"
-      - "traefik.http.routers.flood.entrypoints=https"
-      - "traefik.http.routers.flood.tls=true"
-      - "traefik.http.routers.flood.service=flood"
-      - "traefik.http.services.flood.loadbalancer.server.port=8788"
-      - "traefik.http.routers.flood.middlewares=redirect-to-https"
-    depends_on:
-      - qbittorrent
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
     networks:
       - edge
     ports:
@@ -137,10 +201,16 @@ services:
       - "traefik.http.routers.qbittorrent.middlewares=redirect-to-https"
     depends_on:
       - traefik
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8766"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
   plex:
     image: lscr.io/linuxserver/plex:latest
+    container_name: plex
     networks:
       - edge
     ports:
@@ -165,7 +235,27 @@ services:
       - "traefik.http.routers.plex.middlewares=redirect-to-https"
     depends_on:
       - traefik
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:32400"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --cleanup --interval 3600
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep watchtower"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
 
 networks:
   edge:

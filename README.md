@@ -16,9 +16,9 @@ It's a single server docker-compose setup for a few services that one might need
 - [qBittorrent](https://www.qbittorrent.org/) - Torrent Client
 - [Watchtower](https://github.com/containrrr/watchtower) - Automatic Docker Image Updater [Not Implemented Yet]
 - [Plex](https://www.plex.tv/) - Media Server
-- [Flood]() - Web UI for qBittorrent
 - [Speedtest](https://openspeedtest.com/selfhosted-speedtest) - OpenSpeedTest Server
-
+- [Registry](https://docs.docker.com/registry/) - Docker Image Registry
+- [MinIO](https://min.io/) - Object Storage Server
 
 ## Setup
 
@@ -41,7 +41,15 @@ cp .env.template .env
 nano .env
 ```
 
-### 4. Obtain a Cloudflare API Token
+### 4. Create a htpasswd file
+
+```bash
+docker run --rm --entrypoint htpasswd httpd:2 -Bbn your_username your_password > auth/htpasswd
+```
+
+> the file needs to correspond to the `HTPASSWD_PATH` variable in the `.env` file. So make necessary file movements if needed.
+
+### 5. Obtain a Cloudflare API Token
 
 - Go to [Cloudflare](https://dash.cloudflare.com/profile/api-tokens) and create a new API Token.
 - Give it the following permissions:
@@ -50,20 +58,20 @@ nano .env
   > Include appropriate zones for the above permissions.
 - Copy the API Token and paste it in the `.env` file.
 
-### 5. Run the setup script
+### 6. Run the setup script
 
 ```bash
 sudo ./setup.sh
 ```
 
-### 6. Add the following DNS records
+### 7. Add the following DNS records
 
 | Type | Name | Content | Proxy Status |
 | ---- | ---- | ------- | ------------ |
 | A | @ | <-Your Public IP Address-> | DNS Only |
 | A | * | <-Your Public IP Address-> | DNS Only |
 
-### 7. Port Forwarding
+### 8. Port Forwarding
 
 Forward the following ports to your server (in your router):
 
@@ -72,7 +80,7 @@ Forward the following ports to your server (in your router):
 | TCP | 80 | <-Private IP of the Host Device> |
 | TCP | 443 | <-Private IP of the Host Device> |
 
-### 7. Start the services
+### 9. Start the services
 
 ```bash
 docker-compose up -d
