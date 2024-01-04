@@ -30,47 +30,97 @@ http:
       rule: "Host(`${MINIO_URL}`)"
       entrypoints:
         - "https"
-      service: "minio@docker"
+      service: "minio"
       tls: true
 
     docker_registry:
       rule: "Host(`${DOCKER_REGISTRY_URL}`)"
       entrypoints:
         - "https"
-      service: "docker_registry@docker"
+      service: "docker_registry"
       tls: true
 
     portainer:
       rule: "Host(`${PORTAINER_URL}`)"
       entrypoints:
         - "https"
-      service: "portainer@docker"
+      service: "portainer"
       tls: true
 
     speedtest:
       rule: "Host(`${SPEEDTEST_URL}`)"
       entrypoints:
         - "https"
-      service: "speedtest@docker"
+      service: "speedtest"
       tls: true
 
     qbittorrent:
       rule: "Host(`${QBITTORRENT_URL}`)"
       entrypoints:
         - "https"
-      service: "qbittorrent@docker"
+      service: "qbittorrent"
       tls: true
 
     flood:
       rule: "Host(`${FLOOD_URL}`)"
       entrypoints:
         - "https"
-      service: "flood@docker"
+      service: "flood"
       tls: true
 
     plex:
       rule: "Host(`${PLEX_URL}`)"
       entrypoints:
         - "https"
-      service: "plex@docker"
+      service: "plex"
       tls: true
+
+  services:
+    minio:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://minio:9000"
+
+    docker_registry:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://registry:5000"
+
+    portainer:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://portainer:9000"
+
+    speedtest:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://speedtest:3000"
+
+    qbittorrent:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://qbittorrent:8766"
+
+    flood:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://flood:8788"
+
+    plex:
+      entryPoint:
+        - "https"
+      loadBalancer:
+        servers:
+          - url: "http://plex:32400"
