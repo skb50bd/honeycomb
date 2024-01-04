@@ -33,8 +33,6 @@ services:
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
       - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_CREDENTIALS}"
       - "traefik.http.routers.dashboard.middlewares=auth"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
       - "traefik.http.routers.dashboard.middlewares=redirect-to-https"
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
@@ -189,7 +187,7 @@ services:
       - PGID=1000
       - WEBUI_PORT=8766
     volumes:
-      - qbittorrent_config:/config
+      - ${QBITTORRENT_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
     labels:
       - "traefik.enable=true"
@@ -260,7 +258,3 @@ services:
 networks:
   edge:
 
-volumes:
-  portainer_data:
-  qbittorrent_config:
-  flood_config:

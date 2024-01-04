@@ -2,3 +2,9 @@ tls:
   certificates:
     - certFile: /certificates/fullchain.pem
       keyFile: /certificates/privkey.pem
+
+middlewares:
+  redirect-to-https:
+    redirectScheme:
+      scheme: https
+      permanent: true
