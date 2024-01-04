@@ -1,17 +1,11 @@
 version: "3.8"
 
+name: honeycomb
 services:
   traefik:
     image: traefik:v2.10.7
     container_name: traefik
     command:
-      - "--log.level=INFO"
-      - "--api.insecure=true"
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.http.address=:80"
-      - "--entrypoints.https.address=:443"
       - "--providers.file.filename=/etc/traefik/traefik-dynamic.yaml"
     ports:
       - 80:80
@@ -21,19 +15,9 @@ services:
       - edge
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
-      - ${HTPASSWD_PATH}:/auth/htpasswd:ro
-      - ./traefik/traefik-dynamic.yaml:/etc/traefik/traefik-dynamic.yaml:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_URL}`)"
-      - "traefik.http.routers.dashboard.entrypoints=https"
-      - "traefik.http.routers.dashboard.tls=true"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_CREDENTIALS}"
-      - "traefik.http.routers.dashboard.middlewares=auth"
-      - "traefik.http.routers.dashboard.middlewares=redirect-to-https"
+      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/:ro
+      - ${HTPASSWD_PATH}:/auth/.htpasswd:ro
+      - ./traefik/:/etc/traefik/:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -52,14 +36,6 @@ services:
       - MINIO_ACCESS_KEY
       - MINIO_SECRET_KEY
     command: server /data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.minio.rule=Host(`${MINIO_URL}`)"
-      - "traefik.http.routers.minio.entrypoints=https"
-      - "traefik.http.routers.minio.tls=true"
-      - "traefik.http.routers.minio.service=minio"
-      - "traefik.http.services.minio.loadbalancer.server.port=9000"
-      - "traefik.http.routers.minio.middlewares=redirect-to-https"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -72,14 +48,6 @@ services:
     container_name: docker_registry
     networks:
       - edge
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.docker_registry.rule=Host(`${DOCKER_REGISTRY_URL}`)"
-      - "traefik.http.routers.docker_registry.entrypoints=https"
-      - "traefik.http.routers.docker_registry.tls=true"
-      - "traefik.http.routers.docker_registry.service=docker_registry"
-      - "traefik.http.services.docker_registry.loadbalancer.server.port=443"
-      - "traefik.http.routers.docker_registry.middlewares=redirect-to-https"
     environment:
       - REGISTRY_AUTH_HTPASSWD_PATH
       - REGISTRY_AUTH_HTPASSWD_REALM
@@ -114,14 +82,6 @@ services:
       - 9443:9443
     volumes:
         - portainer_data:/data
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.portainer.rule=Host(`${PORTAINER_URL}`)"
-      - "traefik.http.routers.portainer.entrypoints=https"
-      - "traefik.http.routers.portainer.tls=true"
-      - "traefik.http.routers.portainer.service=portainer"
-      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-      - "traefik.http.routers.portainer.middlewares=redirect-to-https"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/api/status"]
       interval: 30s
@@ -157,14 +117,6 @@ services:
     ports:
       - 3000:3000
       - 3001:3001
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.speedtest.rule=Host(`${SPEEDTEST_URL}`)"
-      - "traefik.http.routers.speedtest.entrypoints=https"
-      - "traefik.http.routers.speedtest.tls=true"
-      - "traefik.http.routers.speedtest.service=speedtest"
-      - "traefik.http.services.speedtest.loadbalancer.server.port=3000"
-      - "traefik.http.routers.speedtest.middlewares=redirect-to-https"
     depends_on:
       - traefik
     healthcheck:
@@ -189,18 +141,34 @@ services:
     volumes:
       - ${QBITTORRENT_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.qbittorrent.rule=Host(`${QBITTORRENT_URL}`)"
-      - "traefik.http.routers.qbittorrent.entrypoints=https"
-      - "traefik.http.routers.qbittorrent.tls=true"
-      - "traefik.http.routers.qbittorrent.service=qbittorrent"
-      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8766"
-      - "traefik.http.routers.qbittorrent.middlewares=redirect-to-https"
     depends_on:
       - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8766"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  flood:
+    image: lscr.io/linuxserver/flood:latest
+    container_name: flood
+    command: --port 8688
+    networks:
+      - edge
+    ports:
+      - 8688:8688
+    environment:
+      - TZ
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ${FLOOD_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    depends_on:
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -223,14 +191,6 @@ services:
       - ${PLEX_CONFIG_DIR}:/config
       - ${PLEX_TRANSCODE_DIR}:/transcode
       - ${STORAGE_DIR}:/media
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.plex.rule=Host(`${PLEX_URL}`)"
-      - "traefik.http.routers.plex.entrypoints=https"
-      - "traefik.http.routers.plex.tls=true"
-      - "traefik.http.routers.plex.service=plex"
-      - "traefik.http.services.plex.loadbalancer.server.port=32400"
-      - "traefik.http.routers.plex.middlewares=redirect-to-https"
     depends_on:
       - traefik
     healthcheck:
@@ -257,4 +217,5 @@ services:
 
 networks:
   edge:
+    external: true
 

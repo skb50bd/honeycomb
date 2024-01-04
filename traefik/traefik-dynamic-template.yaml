@@ -1,0 +1,76 @@
+tls:
+  certificates:
+    - certFile: /certificates/fullchain.pem
+      keyFile: /certificates/privkey.pem
+
+middlewares:
+  redirect-to-https:
+    redirectScheme:
+      scheme: https
+      permanent: true
+
+http:
+  middlewares:
+    dashboard_auth:
+      basicAuth:
+        usersFile:
+          - /auth/.htpasswd
+
+  routers:
+    traefik_dashboard:
+      rule: "Host(`${TRAEFIK_DASHBOARD_URL}`)"
+      entrypoints:
+        - "https"
+      middlewares:
+        - "dashboard_auth"
+      service: "api@internal"
+      tls: true
+
+    minio:
+      rule: "Host(`${MINIO_URL}`)"
+      entrypoints:
+        - "https"
+      service: "minio@docker"
+      tls: true
+
+    docker_registry:
+      rule: "Host(`${DOCKER_REGISTRY_URL}`)"
+      entrypoints:
+        - "https"
+      service: "docker_registry@docker"
+      tls: true
+
+    portainer:
+      rule: "Host(`${PORTAINER_URL}`)"
+      entrypoints:
+        - "https"
+      service: "portainer@docker"
+      tls: true
+
+    speedtest:
+      rule: "Host(`${SPEEDTEST_URL}`)"
+      entrypoints:
+        - "https"
+      service: "speedtest@docker"
+      tls: true
+
+    qbittorrent:
+      rule: "Host(`${QBITTORRENT_URL}`)"
+      entrypoints:
+        - "https"
+      service: "qbittorrent@docker"
+      tls: true
+
+    flood:
+      rule: "Host(`${FLOOD_URL}`)"
+      entrypoints:
+        - "https"
+      service: "flood@docker"
+      tls: true
+
+    plex:
+      rule: "Host(`${PLEX_URL}`)"
+      entrypoints:
+        - "https"
+      service: "plex@docker"
+      tls: true
