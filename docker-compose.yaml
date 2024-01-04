@@ -151,7 +151,7 @@ services:
     restart: always
 
   flood:
-    image: lscr.io/linuxserver/flood:latest
+    image: jesec/flood:master
     container_name: flood
     command: --port 8688
     networks:
