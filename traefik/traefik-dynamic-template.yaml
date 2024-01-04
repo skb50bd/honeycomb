@@ -14,7 +14,7 @@ http:
     dashboard_auth:
       basicAuth:
         usersFile:
-          - /auth/.htpasswd
+          - "/auth/.htpasswd"
 
   routers:
     traefik_dashboard:
