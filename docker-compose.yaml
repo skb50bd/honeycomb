@@ -23,6 +23,8 @@ services:
     volumes:
       - ${NGINX_PROXY_MANAGER_DATA_DIR}:/data
       - ${CERTS_DIR}:/etc/letsencrypt
+    networks:
+      - edge
     depends_on:
       - nginx-proxy-db
 
@@ -38,6 +40,8 @@ services:
       MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
     volumes:
       - ./mysql:/var/lib/mysql
+    networks:
+      - edge
 
   # traefik:
   #   image: traefik:3.0
