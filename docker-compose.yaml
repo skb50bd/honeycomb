@@ -154,8 +154,8 @@ services:
     ports:
       - 3000:3000
       - 3001:3001
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
       interval: 30s
@@ -178,8 +178,8 @@ services:
     volumes:
       - ${QBITTORRENT_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8766"]
       interval: 30s
@@ -202,8 +202,8 @@ services:
     volumes:
       - ${FLOOD_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002"]
       interval: 30s
@@ -228,8 +228,8 @@ services:
       - ${PLEX_CONFIG_DIR}:/config
       - ${PLEX_TRANSCODE_DIR}:/transcode
       - ${STORAGE_DIR}:/media
-    depends_on:
-      - traefik
+    # depends_on:
+    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:32400"]
       interval: 30s
