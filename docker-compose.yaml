@@ -2,28 +2,65 @@ version: "3.8"
 
 name: honeycomb
 services:
-  traefik:
-    image: traefik:3.0
-    container_name: traefik
-    command:
-      - "--providers.file.filename=/etc/traefik/traefik-dynamic.yaml"
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
     ports:
       - 80:80
       - 443:443
-      - 8080:8080
-    networks:
-      - edge
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/:ro
-      - ${HTPASSWD_PATH}:/auth/.htpasswd:ro
-      - ./traefik/:/etc/traefik/:ro
+      - 8080:81
+    environment:
+      DB_MYSQL_HOST: "nginx-proxy-db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "npm"
+      DB_MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+      DB_MYSQL_NAME: "npm"
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:81/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    restart: always
+    volumes:
+      - ${NGINX_PROXY_MANAGER_DATA_DIR}:/data
+      - ${CERTS_DIR}:/etc/letsencrypt
+    depends_on:
+      - nginx-proxy-db
+
+  nginx-proxy-db:
+    image: 'jc21/mariadb-aria:latest'
+    restart: unless-stopped
+    expose:
+      - 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_MYSQL_PASSWORD}
+      MYSQL_DATABASE: 'npm'
+      MYSQL_USER: 'npm'
+      MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+    volumes:
+      - ./mysql:/var/lib/mysql
+
+  # traefik:
+  #   image: traefik:3.0
+  #   container_name: traefik
+  #   command:
+  #     - "--providers.file.filename=/etc/traefik/traefik-dynamic.yaml"
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #     - 8080:8080
+  #   networks:
+  #     - edge
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/:ro
+  #     - ${HTPASSWD_PATH}:/auth/.htpasswd:ro
+  #     - ./traefik/:/etc/traefik/:ro
+  #   healthcheck:
+  #     test: ["CMD", "traefik", "healthcheck", "--ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   restart: always
 
   minio:
     image: minio/minio
