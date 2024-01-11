@@ -43,28 +43,19 @@ services:
     networks:
       - edge
 
-  # traefik:
-  #   image: traefik:3.0
-  #   container_name: traefik
-  #   command:
-  #     - "--providers.file.filename=/etc/traefik/traefik-dynamic.yaml"
-  #   ports:
-  #     - 80:80
-  #     - 443:443
-  #     - 8080:8080
-  #   networks:
-  #     - edge
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/:ro
-  #     - ${HTPASSWD_PATH}:/auth/.htpasswd:ro
-  #     - ./traefik/:/etc/traefik/:ro
-  #   healthcheck:
-  #     test: ["CMD", "traefik", "healthcheck", "--ping"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   restart: always
+  dockge:
+    image: louislam/dockge:1
+    restart: unless-stopped
+    ports:
+      - 5001:5001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/app/data
+      # If you want to use private registries, you need to share the auth file with Dockge:
+      # - /root/.docker/:/root/.docker
+      - /opt/stacks:/opt/stacks
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
 
   minio:
     image: minio/minio
@@ -206,8 +197,6 @@ services:
     volumes:
       - ${FLOOD_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    # depends_on:
-    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002"]
       interval: 30s
