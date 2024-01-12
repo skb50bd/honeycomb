@@ -15,11 +15,6 @@ services:
       DB_MYSQL_USER: "npm"
       DB_MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
       DB_MYSQL_NAME: "npm"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:81/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     volumes:
       - ${NGINX_PROXY_MANAGER_DATA_DIR}:/data
       - ${CERTS_DIR}:/etc/letsencrypt
@@ -50,10 +45,8 @@ services:
       - 5001:5001
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/app/data
-      # If you want to use private registries, you need to share the auth file with Dockge:
-      # - /root/.docker/:/root/.docker
-      - /opt/stacks:/opt/stacks
+      - ${DOCKGE_DATA_DIR}:/app/data
+      - ${DOCKGE_STACKS_DIR}:/opt/stacks
     environment:
       - DOCKGE_STACKS_DIR=/opt/stacks
 
@@ -68,11 +61,6 @@ services:
       - MINIO_ACCESS_KEY
       - MINIO_SECRET_KEY
     command: server /data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   docker_registry:
@@ -97,11 +85,6 @@ services:
       - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
     depends_on:
       - minio
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/v2/_catalog"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   portainer:
@@ -114,11 +97,6 @@ services:
       - 9443:9443
     volumes:
         - ${PORTAINER_DATA_DIR}:/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/api/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   portainer_agent:
@@ -134,11 +112,6 @@ services:
     deploy:
     depends_on:
       - portainer
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9001"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   speedtest:
@@ -149,13 +122,6 @@ services:
     ports:
       - 3000:3000
       - 3001:3001
-    # depends_on:
-    #   - traefik
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   qbittorrent:
@@ -173,13 +139,6 @@ services:
     volumes:
       - ${QBITTORRENT_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    # depends_on:
-    #   - traefik
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8766"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   flood:
@@ -197,11 +156,6 @@ services:
     volumes:
       - ${FLOOD_CONFIG_DIR}:/config
       - ${STORAGE_DIR}:/media
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: always
 
   plex:
@@ -221,8 +175,6 @@ services:
       - ${PLEX_CONFIG_DIR}:/config
       - ${PLEX_TRANSCODE_DIR}:/transcode
       - ${STORAGE_DIR}:/media
-    # depends_on:
-    #   - traefik
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:32400"]
       interval: 30s
