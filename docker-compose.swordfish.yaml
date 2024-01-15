@@ -4,7 +4,8 @@ name: honeycomb
 services:
   nginx-proxy:
     image: 'jc21/nginx-proxy-manager:latest'
-    restart: unless-stopped
+    container_name: nginx-proxy
+    restart: always
     ports:
       - 80:80
       - 443:443
@@ -25,7 +26,8 @@ services:
 
   nginx-proxy-db:
     image: 'jc21/mariadb-aria:latest'
-    restart: unless-stopped
+    container_name: nginx-proxy-db
+    restart: always
     expose:
       - 3306
     environment:
@@ -34,58 +36,44 @@ services:
       MYSQL_USER: 'npm'
       MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
     volumes:
-      - ./mysql:/var/lib/mysql
+      - ${NGINX_DB_DATA_DIR}:/var/lib/mysql
+    networks:
+      - edge
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel run --token ${CF_TUNNEL_TOKEN}
+    restart: always
+    networks:
+      - edge
+
+  mon:
+    image: louislam/uptime-kuma:latest
+    container_name: mon
+    restart: always
+    expose:
+      - 3001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MON_DATA_DIR}:/app/data
     networks:
       - edge
 
   dockge:
     image: louislam/dockge:1
-    restart: unless-stopped
+    container_name: dockge
+    restart: always
     ports:
       - 5001:5001
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKGE_DATA_DIR}:/app/data
+      - ${DOCKGE_STACKS_DIR}:/app/data
       - ${DOCKGE_STACKS_DIR}:/opt/stacks
     environment:
       - DOCKGE_STACKS_DIR=/opt/stacks
-
-  minio:
-    image: minio/minio
-    container_name: minio
     networks:
       - edge
-    volumes:
-      - ${MINIO_DATA_DIR}:/data/
-    environment:
-      - MINIO_ACCESS_KEY
-      - MINIO_SECRET_KEY
-    command: server /data
-    restart: always
-
-  docker_registry:
-    image: registry:2
-    container_name: docker_registry
-    networks:
-      - edge
-    environment:
-      - REGISTRY_AUTH_HTPASSWD_PATH
-      - REGISTRY_AUTH_HTPASSWD_REALM
-      - REGISTRY_HTTP_ADDR=0.0.0.0:443
-      - REGISTRY_HTTP_TLS_CERTIFICATE
-      - REGISTRY_HTTP_TLS_KEY
-      - REGISTRY_STORAGE
-      - REGISTRY_STORAGE_S3_ACCESSKEY
-      - REGISTRY_STORAGE_S3_SECRETKEY
-      - REGISTRY_STORAGE_S3_BUCKET
-      - REGISTRY_STORAGE_S3_REGION
-      - REGISTRY_STORAGE_S3_REGIONENDPOINT=http://minio:9000
-    volumes:
-      - ${HTPASSWD_PATH}:/auth/htpasswd
-      - ${CERTS_DIR}/${BASE_DOMAIN}/:/certificates/
-    depends_on:
-      - minio
-    restart: always
 
   portainer:
     image: portainer/portainer-ce:latest
@@ -165,6 +153,12 @@ services:
       - edge
     ports:
       - 32400:32400
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+      - 32469:32469
     environment:
       - PLEX_CLAIM
       - TZ
@@ -200,4 +194,3 @@ services:
 networks:
   edge:
     external: true
-

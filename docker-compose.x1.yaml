@@ -1,0 +1,97 @@
+name: x1
+version: "3.8"
+services:
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      - 8080:81
+      - 3306:3306
+    environment:
+      DB_MYSQL_HOST: "nginx-proxy-db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "npm"
+      DB_MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+      DB_MYSQL_NAME: "npm"
+    volumes:
+      - ${NGINX_PROXY_MANAGER_DATA_DIR}:/data
+    networks:
+      - edge
+    depends_on:
+      - nginx-proxy-db
+
+  nginx-proxy-db:
+    image: 'jc21/mariadb-aria:latest'
+    container_name: nginx-proxy-db
+    restart: unless-stopped
+    expose:
+      - 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_MYSQL_PASSWORD}
+      MYSQL_DATABASE: 'npm'
+      MYSQL_USER: 'npm'
+      MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+    volumes:
+      - ${NGINX_DB_DATA_DIR}:/var/lib/mysql
+    networks:
+      - edge
+
+  mon:
+    image: louislam/uptime-kuma:latest
+    container_name: mon
+    restart: always
+    expose:
+      - 3001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MON_DATA_DIR}:/app/data
+    networks:
+      - edge
+
+  dockge:
+    image: louislam/dockge:1
+    container_name: dockge
+    restart: unless-stopped
+    ports:
+      - 5001:5001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKGE_DATA_DIR}:/app/data
+      - ${DOCKGE_STACKS_DIR}:/opt/stacks
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
+    networks:
+      - edge
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    expose:
+      - 9000
+    networks:
+      - edge
+    volumes:
+        - ${PORTAINER_DATA_DIR}:/data
+    restart: always
+
+  portainer_agent:
+    image: portainer/agent
+    container_name: portainer_agent
+    expose:
+      - 9001
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    depends_on:
+      - portainer
+    restart: always
+
+networks:
+  edge:
+    external: true
+
