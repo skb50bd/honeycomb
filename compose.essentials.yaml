@@ -1,0 +1,67 @@
+version: "3.8"
+name: essentials
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel run --token ${CF_TUNNEL_TOKEN}
+    restart: always
+    networks:
+      - edge
+  mon:
+    image: louislam/uptime-kuma:latest
+    container_name: mon
+    restart: always
+    expose:
+      - 3001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MON_DATA_DIR}:/app/data
+    networks:
+      - edge
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    networks:
+      - edge
+    ports:
+      - 9000:9000
+      - 9443:9443
+    volumes:
+      - ${PORTAINER_DATA_DIR}:/data
+    restart: always
+  portainer_agent:
+    image: portainer/agent
+    container_name: portainer_agent
+    ports:
+      - 9001:9001
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    deploy: null
+    depends_on:
+      - portainer
+    restart: always
+  speedtest:
+    image: openspeedtest/latest
+    container_name: speedtest
+    networks:
+      - edge
+    ports:
+      - 3000:3000
+      - 3001:3001
+    restart: always
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    networks:
+      - edge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --cleanup --interval 3600
+    restart: always
+networks:
+  edge:
+    external: true

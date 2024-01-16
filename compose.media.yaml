@@ -1,0 +1,188 @@
+version: "3.8"
+name: media
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    networks:
+      - edge
+    ports:
+      - 8766:8766
+    environment:
+      - TZ
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT=8766
+    volumes:
+      - ${QBITTORRENT_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  sabnzbd:
+    image: ghcr.io/hotio/sabnzbd:latest
+    container_name: sabnzbd
+    networks:
+      - edge
+    expose:
+      - 8080
+    ports:
+      - 9999:8080
+    environment:
+      - TZ
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ${SABNZBD_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  flood:
+    image: jesec/flood:master
+    container_name: flood
+    command: --port 8688
+    networks:
+      - edge
+    ports:
+      - 8688:8688
+    environment:
+      - TZ
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ${FLOOD_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    networks:
+      - edge
+    ports:
+      - 32400:32400
+      - 1900:1900/udp
+      - 32410:32410/udp
+      - 32412:32412/udp
+      - 32413:32413/udp
+      - 32414:32414/udp
+      - 32469:32469
+    environment:
+      - PLEX_CLAIM
+      - TZ
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+    volumes:
+      - ${PLEX_CONFIG_DIR}:/config
+      - ${PLEX_TRANSCODE_DIR}:/transcode
+      - ${STORAGE_DIR}:/media
+    restart: always
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    networks:
+      - edge
+    expose:
+      - 8096
+      - 8920
+    ports:
+      - 8096:8096
+      - 8920:8920
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${JELLYFIN_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  prowlarr:
+    image: ghcr.io/hotio/prowlarr:latest
+    container_name: prowlarr
+    networks:
+      - edge
+    expose:
+      - 9696
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${PROWLER_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  sonarr:
+    image: ghcr.io/hotio/sonarr:latest
+    container_name: sonarr
+    networks:
+      - edge
+    expose:
+      - 8989
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${SONARR_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  radarr:
+    image: ghcr.io/hotio/radarr:latest
+    container_name: radarr
+    networks:
+      - edge
+    expose:
+      - 7878
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${RADARR_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  lidarr:
+    image: ghcr.io/hotio/lidarr:latest
+    container_name: lidarr
+    networks:
+      - edge
+    expose:
+      - 8686
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${LIDARR_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  readarr:
+    image: ghcr.io/hotio/readarr:latest
+    container_name: readarr
+    networks:
+      - edge
+    expose:
+      - 8787
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${READARR_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+  whisparr:
+    image: ghcr.io/hotio/whisparr:latest
+    container_name: whisparr
+    networks:
+      - edge
+    expose:
+      - 6969
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ
+    volumes:
+      - ${WHISPARR_CONFIG_DIR}:/config
+      - ${STORAGE_DIR}:/media
+    restart: always
+networks:
+  edge:
+    external: true

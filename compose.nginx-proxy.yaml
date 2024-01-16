@@ -1,0 +1,44 @@
+version: "3.8"
+name: nginx-proxy
+services:
+  nginx-proxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+      - 8080:81
+    environment:
+      DB_MYSQL_HOST: "nginx-proxy-db"
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: "npm"
+      DB_MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+      DB_MYSQL_NAME: "npm"
+    volumes:
+      - ${NGINX_PROXY_MANAGER_DATA_DIR}:/data
+      - ${CERTS_DIR}:/etc/letsencrypt
+    networks:
+      - edge
+    depends_on:
+      - nginx-proxy-db
+
+  nginx-proxy-db:
+    image: 'jc21/mariadb-aria:latest'
+    container_name: nginx-proxy-db
+    restart: always
+    expose:
+      - 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_MYSQL_PASSWORD}
+      MYSQL_DATABASE: 'npm'
+      MYSQL_USER: 'npm'
+      MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD}
+    volumes:
+      - ${NGINX_DB_DATA_DIR}:/var/lib/mysql
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
